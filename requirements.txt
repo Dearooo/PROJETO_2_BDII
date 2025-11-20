@@ -1,0 +1,5 @@
+streamlit==1.51.0
+pandas==2.3.3
+plotly==6.4.0
+psycopg2-binary==2.9.11
+dotenv==0.9.9

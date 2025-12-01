@@ -1,63 +1,43 @@
-import streamlit as st
-import pandas as pd
-import psycopg2.pool
 import os
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 
-# Caminho absoluto para o .env
-env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '.env'))
-print(f"🔍 Carregando .env de: {env_path}")
+# Carrega variáveis do .env
+load_dotenv()
 
-# Carrega o .env explicitamente
-load_dotenv(dotenv_path=env_path)
+# Lê variáveis de ambiente
+USERNAME = os.getenv("MONGO_USERNAME")
+PASSWORD = os.getenv("MONGO_PASSWORD")
+CLUSTER = os.getenv("MONGO_CLUSTER")
+APP_NAME = os.getenv("MONGO_APP_NAME")
+DB_NAME = os.getenv("MONGO_DB_NAME")
 
-# Debug: imprime as variáveis para conferir
-print("DB_HOST:", os.getenv("DB_HOST"))
-print("DB_NAME:", os.getenv("DB_NAME"))
-print("DB_USER:", os.getenv("DB_USER"))
-print("DB_PASSWORD:", os.getenv("DB_PASSWORD"))
-print("DB_PORT:", os.getenv("DB_PORT"))
+# Monta string de conexão
+URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER}/?appName={APP_NAME}"
 
-@st.cache_resource
-def get_connection_pool():
-    connection_pool = psycopg2.pool.SimpleConnectionPool(
-        1, 10,
-        host=os.getenv('DB_HOST'),
-        database=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        port=os.getenv('DB_PORT')
-    )
-    return connection_pool
+def get_client():
+    """
+    Retorna o cliente MongoDB conectado
+    """
+    client = MongoClient(URI, server_api=ServerApi("1"))
+    return client
 
-def init_connection():
+def get_database():
+    """
+    Retorna o banco configurado no .env
+    """
+    client = get_client()
+    return client[DB_NAME]
+
+def test_connection():
+    """
+    Testa conexão usando ping
+    """
     try:
-        conn = connection_pool.getconn()
-        print("✅ Conexão bem-sucedida com:", os.getenv('DB_HOST'))
-        return conn
+        client = get_client()
+        client.admin.command('ping')
+        print("✅ MongoDB conectado com sucesso!")
     except Exception as e:
-        st.error(f"Erro na conexão: {e}")
-        print("❌ Erro detalhado:", e)
-        return None
-
-def close_connection(conn):
-    try:
-        connection_pool.putconn(conn)
-        print("✅ Conexão retornada ao pool")
-    except Exception as e:
-        st.error(f"Erro ao retornar conexão ao pool: {e}")
-
-#função para executar querys;
-#@st.cache_data(ttl=3600) # Possivelmente causa problemas
-def run_query(query, params = None):
-    conn = init_connection()
-    try:
-        df = pd.read_sql(query, conn, params=params)
-        return df
-    except Exception as e:
-        st.error(f"Erro na query: {e}")
-        return pd.DataFrame()
-    finally:
-        close_connection(conn=conn)
-        
-connection_pool = get_connection_pool()
+        print("❌ Erro na conexão MongoDB:")
+        print(e)

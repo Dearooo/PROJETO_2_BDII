@@ -54,6 +54,7 @@ def run_query(collection_name, query={}, projection=None, aggregate_pipeline=Non
         else:
             results = list(collection.find(query, projection))
 
+
         df = pd.DataFrame(results)
 
         return df

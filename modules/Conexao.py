@@ -1,4 +1,5 @@
 import os
+import certifi
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
@@ -20,7 +21,12 @@ def get_client():
     """
     Retorna o cliente MongoDB conectado
     """
-    client = MongoClient(URI, server_api=ServerApi("1"))
+    client = MongoClient(
+    os.getenv("URI"),
+    tls=True,
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=30000
+)
     return client
 
 def get_database():

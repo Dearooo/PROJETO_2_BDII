@@ -15,18 +15,18 @@ APP_NAME = os.getenv("MONGO_APP_NAME")
 DB_NAME = os.getenv("MONGO_DB_NAME")
 
 # Monta string de conexão
-URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER}/?appName={APP_NAME}"
+URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER}/?retryWrites=true&w=majority&appName={APP_NAME}"
 
 def get_client():
     """
     Retorna o cliente MongoDB conectado
     """
     client = MongoClient(
-    os.getenv("URI"),
-    tls=True,
-    tlsCAFile=certifi.where(),
-    serverSelectionTimeoutMS=30000
-)
+        URI,
+        tls=True,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=30000
+    )
     return client
 
 def get_database():

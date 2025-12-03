@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
@@ -41,3 +42,22 @@ def test_connection():
     except Exception as e:
         print("❌ Erro na conexão MongoDB:")
         print(e)
+
+def run_query(collection_name, query={}, projection=None, aggregate_pipeline=None):
+    
+    db = get_database()
+    collection = db[collection_name]
+
+    try:
+        if aggregate_pipeline is not None:
+            results = list(collection.aggregate(aggregate_pipeline))
+        else:
+            results = list(collection.find(query, projection))
+
+        df = pd.DataFrame(results)
+
+        return df
+
+    except Exception as e:
+        print(f"❌ Erro ao executar consulta MongoDB: {e}")
+        return pd.DataFrame()

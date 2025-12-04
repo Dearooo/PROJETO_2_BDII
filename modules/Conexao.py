@@ -1,4 +1,4 @@
-import os
+from stramlit import st
 import pandas as pd
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -8,11 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Lê variáveis de ambiente
-USERNAME = os.getenv("MONGO_USERNAME")
-PASSWORD = os.getenv("MONGO_PASSWORD")
-CLUSTER = os.getenv("MONGO_CLUSTER")
-APP_NAME = os.getenv("MONGO_APP_NAME")
-DB_NAME = os.getenv("MONGO_DB_NAME")
+USERNAME = st.secrets("MONGO_USERNAME")
+PASSWORD = st.secrets("MONGO_PASSWORD")
+CLUSTER = st.secrets("MONGO_CLUSTER")
+APP_NAME = st.secrets("MONGO_APP_NAME")
+DB_NAME = st.secrets("MONGO_DB_NAME")
 
 # Monta string de conexão
 URI = f"mongodb+srv://{USERNAME}:{PASSWORD}@{CLUSTER}/?appName={APP_NAME}"

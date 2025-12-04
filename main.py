@@ -12,6 +12,9 @@ test_connection()
 
 # Acessa banco
 db = get_database()
+st.write("Banco acessado:", db.name)
+st.write("Coleções disponíveis:", db.list_collection_names())
+
 
 print("Banco de dados acessado com sucesso:", db.name)
 

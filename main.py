@@ -31,13 +31,13 @@ def get_base64_image(image_path):
         data = f.read()
     return base64.b64encode(data).decode()
 
-# Caminho relativo da sua imagem
+
 image_logo = get_base64_image("assets/Logo.png")
 image_usuario = get_base64_image("assets/Usuario.png")
 
-#criando o header
+
 containerHeader = st.container(horizontal= True, horizontal_alignment="left",gap="small")
-#cria o visual do header e estiliza
+
 containerHeader.markdown(f"""
 <style>
 .header-container {{
@@ -86,10 +86,10 @@ containerHeader.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-#criando o body.
+
 containerBody = st.container(border=True)
 
-#estilo da aba
+
 st.markdown("""
 <style>
 .stTabs [role="tab"] {
@@ -116,7 +116,6 @@ st.markdown("""
 
 
 
-#criando as abas que contem os relatórios.
 tab1, tab2, tab3 = containerBody.tabs(["Grafico1", "Grafico2", "Grafico3"])
 
 with tab1:
@@ -143,7 +142,6 @@ with tab1:
         ]
 
 
-        # Cria o selectbox mostrando nome, mas armazenando id
         restaurante_selecionado = st.selectbox(
             "Selecione o Restaurante",
             options=opcoes,
@@ -163,17 +161,22 @@ with tab1:
                     }
                 },
                 {"$unwind": "$itemCompras"},
+                {
+                    "$lookup": {
+                        "from": "produto",
+                        "localField": "itemCompras.produto.nome",
+                        "foreignField": "nome",
+                        "as": "produto_info"
+                    }
+                },
+                {"$unwind": "$produto_info"},
             ]
-            print(df_restaurantes.dtypes)
-            print(df_restaurantes.head())
 
-            # Se o usuário escolheu um restaurante específico
+    
             if restaurante_selecionadoQuery != 0:
                 pipeline.append({
-                    "$match": {"itemCompras.produto.idRestaurante": ObjectId(restaurante_selecionadoQuery)}
+                    "$match": {"produto_info.restauranteId": ObjectId(restaurante_selecionadoQuery)}
                 })
-
-
 
             pipeline.extend([
                 {
@@ -186,19 +189,6 @@ with tab1:
             ])
 
             df = run_query("pedido", aggregate_pipeline=pipeline)
-            print(df_restaurantes.columns)
-            print(df_restaurantes.head())
-
-
-            if "_id" in df.columns:
-                df = df.rename(columns={"_id": "porcentagem_desconto"})
-
-            # Garante que as colunas existam
-            if "porcentagem_desconto" not in df.columns:
-                df["porcentagem_desconto"] = []
-
-            if "total_cupons_usados" not in df.columns:
-                df["total_cupons_usados"] = []
 
             if "_id" in df.columns:
                 df = df.rename(columns={"_id": "porcentagem_desconto"})
@@ -206,9 +196,10 @@ with tab1:
             if "porcentagem_desconto" in df.columns:
                 df["porcentagem_desconto"] = df["porcentagem_desconto"].astype(str) + "%"
             else:
-                # garante que a coluna exista mesmo se não houver dados
                 df["porcentagem_desconto"] = []
 
+            if "total_cupons_usados" not in df.columns:
+                df["total_cupons_usados"] = []
 
             return df
 
@@ -231,82 +222,98 @@ with tab1:
         xaxis_title="Porcentagem de Desconto",
         yaxis_title="Total de Cupons Usados",
         title_x=0.5,
-        xaxis=dict(type='category')  # força eixo categórico
+        xaxis=dict(type='category')
     )
 
     st.plotly_chart(fig1, use_container_width=True)
     st.write(df1)
 
 
-# with tab2:
-#     res = pd.DataFrame({"nome_restaurante": ["Todos"], "id": [0]})
-#     df_restaurantes = run_query(
-#     collection_name="restaurante",
-#     projection={"id": 1, "restaurante.nomeFantasia": 1, "restaurante.razaoSocial": 1, "_id": 0}
-#     )
+with tab2:
+    res = pd.DataFrame({"nome_restaurante": ["Todos"], "id": [0]})
 
-#     df_restaurantes["nome_restaurante"] = df_restaurantes["restaurante"].apply(
-#         lambda r: f"{r['nomeFantasia']} ({r['razaoSocial']})"
-#     )
-#     res = pd.concat([res, df_restaurantes[["nome_restaurante", "id"]]])
-#     option = st.selectbox("Selecione um restaurante", res['nome_restaurante'], index=0)
-#     restaurante_id = 0 if option is None else res.loc[res['nome_restaurante'] == option]['id'].values[0]
-    
-#     pipeline = [
-#         {"$unwind": "$itemCompras"},
-#         {
-#             "$project": {
-#                 "dia": {"$dateToString": {"format": "%Y-%m-%d", "date": "$data"}},
-#                 "valor_item": {
-#                     "$multiply": [
-#                         "$itemCompras.qtde",
-#                         "$itemCompras.produto.preco",
-#                         {
-#                             "$subtract": [
-#                                 1,
-#                                 {"$divide": ["$cupom.porcentagemDesconto", 100]}
-#                             ]
-#                         }
-#                     ]
-#                 },
-#                 "restaurante_id": "$itemCompras.produto.idRestaurante"
-#             }
-#         }
-#     ]
+    df_restaurantes = run_query(
+        collection_name="restaurante",
+        query={},
+        projection={"_id": 1, "nomeFantasia": 1, "razaoSocial": 1}
+    )
 
-#     if restaurante_id > 0:
-#         pipeline.append({"$match": {"restaurante_id": restaurante_id}})
+    df_restaurantes["nome_restaurante"] = df_restaurantes.apply(
+        lambda r: f"{r['nomeFantasia']} ({r['razaoSocial']})", axis=1
+    )
+    df_restaurantes["id"] = df_restaurantes["_id"].astype(str)
 
-#     pipeline.extend([
-#         {
-#             "$group": {
-#                 "_id": "$dia",
-#                 "vendas": {"$sum": "$valor_item"}
-#             }
-#         },
-#         {"$sort": {"_id": 1}}
-#     ])
+    res = pd.concat([res, df_restaurantes[["nome_restaurante", "id"]]])
+    option = st.selectbox("Selecione um restaurante", res['nome_restaurante'], index=0)
+    restaurante_id = 0 if option is None else res.loc[res['nome_restaurante'] == option]['id'].values[0]
 
-#     vendas = run_query("pedido", aggregate_pipeline=pipeline)
-#     vendas = vendas.rename(columns={"_id": "dia"})
-#     # print(restaurante_id)
-    
-#     if len(vendas) > 0:
-#         st.bar_chart(vendas, x='dia', y='vendas', x_label="Dia", y_label="Vendas", color='#FFCC80')
-#         st.write(vendas)
-#     else:
-#         st.write("Nenhum dado encontrado.")
+    pipeline = [
+        {"$unwind": "$itemCompras"},
+        {
+            "$lookup": {
+                "from": "produto",
+                "localField": "itemCompras.produto.nome",
+                "foreignField": "nome",
+                "as": "produto_info"
+            }
+        },
+        {"$unwind": "$produto_info"},
+        {
+            "$project": {
+                "dia": {"$dateToString": {"format": "%Y-%m-%d", "date": "$data"}},
+                "valor_item": {
+                    "$multiply": [
+                        "$itemCompras.qtde",
+                        {"$toDouble": "$produto_info.preco"},
+                        {
+                            "$subtract": [
+                                1,
+                                {"$divide": ["$cupom.porcentagemDesconto", 100]}
+                            ]
+                        }
+                    ]
+                },
+                "restaurante_id": "$produto_info.restauranteId"
+            }
+        }
+    ]
+
+
+    if restaurante_id != 0:
+        pipeline.append({"$match": {"restaurante_id": ObjectId(restaurante_id)}})
+
+    pipeline.extend([
+        {
+            "$group": {
+                "_id": "$dia",
+                "vendas": {"$sum": "$valor_item"}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ])
+    vendas = run_query("pedido", aggregate_pipeline=pipeline)
+    vendas = vendas.rename(columns={"_id": "dia"})
+
+    if len(vendas) > 0:
+        st.bar_chart(vendas, x='dia', y='vendas', x_label="Dia", y_label="Vendas", color='#FFCC80')
+        st.write(vendas)
+    else:
+        st.write("Nenhum dado encontrado.")
+
 
 with tab3:
     st.subheader("Métrica por Restaurante — Ticket Médio ou Cupons Usados")
 
-    df_rest = run_query("""
-        SELECT id AS id_restaurante, nome_fantasia
-        FROM restaurante
-        ORDER BY nome_fantasia;
-    """)
+    df_restaurantes = run_query(
+        collection_name="restaurante",
+        query={},
+        projection={"_id": 1, "nomeFantasia": 1}
+    )
 
-    opcoes = [{"id_restaurante": 0, "nome_fantasia": "Todos"}] + df_rest.to_dict("records")
+    opcoes = [{"id_restaurante": "0", "nome_fantasia": "Todos"}] + [
+        {"id_restaurante": str(r["_id"]), "nome_fantasia": r["nomeFantasia"]}
+        for r in df_restaurantes.to_dict("records")
+    ]
 
     restaurante_sel = st.selectbox(
         "Selecione o Restaurante",
@@ -316,55 +323,99 @@ with tab3:
     )
     restaurante_id = restaurante_sel["id_restaurante"]
 
-    query_ticket = """
-        SELECT
-            r.nome_fantasia AS restaurante,
-            ROUND(
-                (
-                    SUM(
-                        ic.qtde * pr.preco * (1 - COALESCE(c.porcentagem_desconto, 0)::numeric / 100.0)
-                    )
-                    / NULLIF(COUNT(DISTINCT p.id), 0)
-                )::numeric
-            , 2) AS ticket_medio,
-            SUM(
-                ic.qtde * pr.preco * (1 - COALESCE(c.porcentagem_desconto, 0)::numeric / 100.0)
-            )::numeric AS faturamento_total,
-            COUNT(DISTINCT p.id) AS total_pedidos
-        FROM pedido p
-        JOIN item_compra ic ON p.id = ic.id_pedido
-        JOIN produto pr ON ic.id_produto = pr.id
-        LEFT JOIN cupom c ON p.cupom_aplicado = c.id
-        JOIN restaurante r ON pr.id_restaurante = r.id
-    """
+    pipeline = [
+        {"$unwind": "$itemCompras"},
+        {
+            "$lookup": {
+                "from": "produto",
+                "localField": "itemCompras.produto.nome",
+                "foreignField": "nome",
+                "as": "produto_info"
+            }
+        },
+        {"$unwind": "$produto_info"},
+        {
+            "$lookup": {
+                "from": "restaurante",
+                "localField": "produto_info.restauranteId",
+                "foreignField": "_id",
+                "as": "restaurante_info"
+            }
+        },
+        {"$unwind": "$restaurante_info"},
+    ]
 
-    params = []
-    if restaurante_id != 0:
-        query_ticket += " WHERE r.id = %s "
-        params.append(restaurante_id)
+    if restaurante_id and restaurante_id != "0":
+        try:
+            pipeline.append({"$match": {"restaurante_info._id": ObjectId(restaurante_id)}})
+        except Exception:
+            st.warning("ID de restaurante inválido. Exibindo todos.")
+            
 
-    query_ticket += " GROUP BY r.nome_fantasia ORDER BY ticket_medio DESC;"
+    pipeline.extend([
+        {
+            "$project": {
+                "restaurante": "$restaurante_info.nomeFantasia",
+                "pedido_id": "$_id",
+                "valor_item": {
+                    "$multiply": [
+                        "$itemCompras.qtde",
+                        {"$toDouble": "$produto_info.preco"},
+                        {
+                            "$subtract": [
+                                1,
+                                {"$divide": ["$cupom.porcentagemDesconto", 100]}
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$restaurante",
+                "faturamento_total": {"$sum": "$valor_item"},
+                "total_pedidos": {"$addToSet": "$pedido_id"}
+            }
+        },
+        {
+            "$project": {
+                "restaurante": "$_id",
+                "faturamento_total": 1,
+                "total_pedidos": {"$size": "$total_pedidos"},
+                "ticket_medio": {
+                    "$cond": [
+                        {"$gt": [{"$size": "$total_pedidos"}, 0]},
+                        {"$round": [
+                            {"$divide": ["$faturamento_total", {"$size": "$total_pedidos"}]},
+                            2
+                        ]},
+                        0
+                    ]
+                }
+            }
+        },
+        {"$sort": {"ticket_medio": -1}}
+    ])
 
-    df_ticket = run_query(query_ticket, tuple(params))
+
+    df_ticket = run_query("pedido", aggregate_pipeline=pipeline)
 
     if df_ticket is None or df_ticket.empty:
         st.write("Nenhum dado encontrado para Ticket Médio.")
     else:
         fig = px.funnel(
-        df_ticket,
-        x="ticket_medio",
-        y="restaurante",
-        title="Ticket Médio por Restaurante (Funil)",
-        color_discrete_sequence=["#FFCC80"],
+            df_ticket,
+            x="ticket_medio",
+            y="restaurante",
+            title="Ticket Médio por Restaurante (Funil)",
+            color_discrete_sequence=["#FFCC80"],
         )
-
         fig.update_layout(
             title_x=0.5,
             xaxis_title="Ticket Médio (R$)",
             yaxis_title="Restaurante",
-
         )
-
         st.plotly_chart(fig, use_container_width=True)
         st.write(df_ticket)
 
